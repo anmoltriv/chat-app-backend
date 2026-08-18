@@ -17,7 +17,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRouter);
-app.use("/api/rooms",authMiddleware, roomRouter);
+app.use("/api/room",authMiddleware, roomRouter);
 
 
 async function startServer() {
