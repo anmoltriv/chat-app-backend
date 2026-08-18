@@ -5,9 +5,11 @@ const DB_CONNECTION_URL = process.env.DB_CONNECTION_STRING;
 
 export const pool = new Pool({
   connectionString: DB_CONNECTION_URL,
-  ssl: process.env.NODE_ENV === "production" 
-    ? { rejectUnauthorized: false } 
-    : false,
+  max: 20, 
+  min: 4, 
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
 });
 
 export async function connectDB() {

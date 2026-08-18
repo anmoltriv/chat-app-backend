@@ -3,6 +3,7 @@ import express from "express";
 import authRouter from "./routes/auth.routes.js";
 import roomRouter from "./routes/room.routes.js";
 import { connectDB } from "./db/db.js";
+import { authMiddleware } from "./middleware/authMiddleware.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -16,7 +17,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRouter);
-app.use("/api/rooms", roomRouter);
+app.use("/api/rooms",authMiddleware, roomRouter);
 
 
 async function startServer() {
