@@ -2,6 +2,8 @@ import type { NextFunction, Request, Response } from "express";
 import { pool } from "../db/db.js";
 import { fetchroomsquery } from "../queries/rooms.queries.js";
 
+
+// get rooms controller fetches the data of the user(rooms involved + last message reveived on each room with sender info)
 export const getRooms = async (
   req: Request,
   res: Response,
@@ -23,3 +25,5 @@ export const getRooms = async (
     });
   }
 };
+
+
