@@ -1,3 +1,4 @@
+import { WebSocket } from "ws";
 export type Connection = {
   userId: number;
   rooms: Set<number>;

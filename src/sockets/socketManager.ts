@@ -6,11 +6,11 @@ import {
   userSockets,
   type Connection,
 } from "./socketStore.js";
+import { WebSocket } from "ws";
 
 export async function addConnection(
   socket: WebSocket,
-  req: Request,
-  userId: number,
+  userId: number
 ) {
   const rooms = await getRooms(userId);
   // remember in js the objects are pointer/reference based so the changes are propogated even if they are stored somewhere

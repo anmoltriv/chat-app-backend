@@ -2,7 +2,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "node:http";
 import { verifyToken } from "../middleware/wsauthUtil.js";
 import { addConnection, removeConnection } from "./socketManager.js";
-
+import type { ClientMessage } from "../types/messages.js";
 let wss: WebSocketServer;
 
 export const initializeWsServer = (server: Server) => {
@@ -43,18 +43,15 @@ export const initializeWsServer = (server: Server) => {
         }
     });
 
-    wss.on("connection", (ws, req, userId) => {
-         
-        addConnection(ws,req,userId);
+    wss.on("connection",async (ws:WebSocket, req) => {
+        const userId = req.userId!;
+        await addConnection(ws,userId);
 
-        ws.on("message", (data) => {
-            console.log(
-                `Message from ${userId}:`,
-                data.toString()
-            );
-        });
+        ws.on("message",(rawdata)=>{
 
-        ws.on("close", (ws,userId) => {
+        })
+
+        ws.on("close", () => {
             removeConnection(ws);
         });
 
