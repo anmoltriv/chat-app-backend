@@ -1,3 +1,5 @@
+import { pool } from "../db/db.js";
+
 export const fetchroomsquery = `SELECT
     r.id,
     r.name,
@@ -39,3 +41,14 @@ LEFT JOIN users u
 
 WHERE rm.user_id = $1
 ORDER BY lm.created_at DESC NULLS LAST;`;
+
+
+export const getRooms = async (userId:number) => {
+    const result = await pool.query( `SELECT r.*
+     FROM rooms r
+     JOIN room_members rm
+       ON r.id = rm.room_id
+     WHERE rm.user_id = $1`,
+    [userId])
+    return result.rows;
+}

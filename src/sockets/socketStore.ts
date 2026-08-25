@@ -1,4 +1,4 @@
-type Connection = {
+export type Connection = {
   userId: number;
   rooms: Set<number>;
 };
