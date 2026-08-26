@@ -31,3 +31,10 @@ export type ClientMessage =
         messageId: number;
       };
     };
+
+export type MessageType = ClientMessage["type"];
+export type MessageHandlerType = (
+  ws: WebSocket,
+  message: ClientMessage,
+) => void | Promise<void>;
+
