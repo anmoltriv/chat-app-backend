@@ -145,3 +145,14 @@ export function sendToUser(userId: number, message: object) {
     }
   }
 }
+
+export function disconnectUserSockets(userId: number) {
+  const sockets = userSockets.get(userId);
+  if (!sockets) {
+    return;
+  }
+
+  for (const socket of [...sockets]) {
+    socket.close(1000, "Logged out");
+  }
+}

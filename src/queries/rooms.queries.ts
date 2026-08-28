@@ -114,11 +114,11 @@ export const createRoomForUser = async (userId: number, name: string) => {
 
     const roomResult = await client.query(
       `
-      INSERT INTO rooms (name)
-      VALUES ($1)
+      INSERT INTO rooms (name, created_by)
+      VALUES ($1, $2)
       RETURNING id
       `,
-      [name],
+      [name, userId],
     );
 
     const roomId = roomResult.rows[0].id as number;
@@ -126,7 +126,7 @@ export const createRoomForUser = async (userId: number, name: string) => {
     await client.query(
       `
       INSERT INTO room_members (room_id, user_id, role)
-      VALUES ($1, $2, 'MEMBER')
+      VALUES ($1, $2, 'admin')
       `,
       [roomId, userId],
     );
@@ -146,7 +146,7 @@ export const addUserToRoom = async (userId: number, roomId: number) => {
   await pool.query(
     `
     INSERT INTO room_members (room_id, user_id, role)
-    VALUES ($1, $2, 'MEMBER')
+    VALUES ($1, $2, 'member')
     ON CONFLICT (room_id, user_id) DO NOTHING
     `,
     [roomId, userId],
@@ -218,4 +218,66 @@ export const createMessageInRoom = async (
   );
 
   return result.rows[0];
+};
+
+export const getMessageById = async (messageId: number) => {
+  const result = await pool.query(
+    `
+    SELECT id, room_id, sender_id
+    FROM messages
+    WHERE id = $1
+    `,
+    [messageId],
+  );
+
+  return result.rows[0] ?? null;
+};
+
+export const updateMessageInRoom = async (
+  messageId: number,
+  senderId: number,
+  content: string,
+) => {
+  const result = await pool.query(
+    `
+    WITH updated_message AS (
+      UPDATE messages
+      SET content = $3
+      WHERE id = $1 AND sender_id = $2
+      RETURNING id, room_id, content, created_at, sender_id
+    )
+    SELECT
+      m.id,
+      m.room_id AS "roomId",
+      m.content,
+      m.created_at AS "createdAt",
+      json_build_object(
+        'id', u.id,
+        'name', u.name,
+        'username', u.user_name
+      ) AS sender
+    FROM updated_message m
+    JOIN users u
+      ON u.id = m.sender_id
+    `,
+    [messageId, senderId, content],
+  );
+
+  return result.rows[0] ?? null;
+};
+
+export const deleteMessageFromRoom = async (
+  messageId: number,
+  senderId: number,
+) => {
+  const result = await pool.query(
+    `
+    DELETE FROM messages
+    WHERE id = $1 AND sender_id = $2
+    RETURNING id, room_id AS "roomId"
+    `,
+    [messageId, senderId],
+  );
+
+  return result.rows[0] ?? null;
 };

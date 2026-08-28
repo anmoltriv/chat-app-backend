@@ -5,7 +5,6 @@ import roomRouter from "./routes/room.routes.js";
 import { connectDB } from "./db/db.js";
 import { authMiddleware } from "./middleware/authMiddleware.js";
 import { initializeWsServer } from "./sockets/index.js";
-import { verifyToken } from "./middleware/wsauthUtil.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;

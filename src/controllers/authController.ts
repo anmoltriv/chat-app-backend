@@ -4,8 +4,11 @@ import jwt from "jsonwebtoken";
 import z from "zod";
 import "dotenv/config";
 import { pool } from "../db/db.js";
+import { revokeToken } from "../utils/tokenDenylist.js";
+import { disconnectUserSockets } from "../sockets/socketManager.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRES_IN = "7d";
 
 if (!JWT_SECRET) {
   throw new Error("JWT_SECRET is not defined");
@@ -72,7 +75,7 @@ export const signupUser: RequestHandler = async (req, res, next) => {
 
     const id = userResult.rows[0].id;
 
-    const token = jwt.sign({ id }, JWT_SECRET);
+    const token = jwt.sign({ id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
     res.status(201).json({
       message: "You have successfully registered",
@@ -134,6 +137,7 @@ export const loginUser: RequestHandler = async (req, res) => {
     const token = jwt.sign(
       { id: findUser.id },
       JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN },
     );
 
     res.status(200).json({
@@ -144,6 +148,39 @@ export const loginUser: RequestHandler = async (req, res) => {
     console.error("Login error:", error);
 
     res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
+export const logoutUser: RequestHandler = async (req, res) => {
+  const userId = req.userId;
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.split(" ")[1]
+    : null;
+
+  if (!token) {
+    res.status(401).json({
+      success: false,
+      message: "Access token missing or malformed",
+    });
+    return;
+  }
+
+  try {
+    revokeToken(token);
+    disconnectUserSockets(userId!);
+
+    res.status(200).json({
+      success: true,
+      message: "You have been logged out successfully",
+    });
+  } catch (error) {
+    console.error("Logout error:", error);
+
+    res.status(500).json({
+      success: false,
       message: "Internal server error",
     });
   }

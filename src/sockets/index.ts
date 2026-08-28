@@ -50,6 +50,8 @@ export const initializeWsServer = (server: Server) => {
     const userId = req.userId!;
     await addConnection(ws, userId);
 
+    ws.send(JSON.stringify({ type: "READY", data: { userId } }));
+
     ws.on("message", async (rawdata) => {
       try {
         const data = JSON.parse(rawdata.toString());
