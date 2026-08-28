@@ -8,8 +8,7 @@ export const pool = new Pool({
   max: 20, 
   min: 4, 
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+  connectionTimeoutMillis: 10000,
 });
 
 export async function connectDB() {

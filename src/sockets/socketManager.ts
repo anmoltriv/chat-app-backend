@@ -8,23 +8,20 @@ import {
 } from "./socketStore.js";
 import { WebSocket } from "ws";
 
-export async function addConnection(
-  socket: WebSocket,
-  userId: number
-) {
+export async function addConnection(ws: WebSocket, userId: number) {
   const rooms = await getRooms(userId);
   // remember in js the objects are pointer/reference based so the changes are propogated even if they are stored somewhere
   const connection: Connection = {
     userId,
     rooms: new Set(),
   };
-  connections.set(socket, connection);
+  connections.set(ws, connection);
 
   if (!userSockets.has(userId)) {
     userSockets.set(userId, new Set());
   }
 
-  userSockets.get(userId)!.add(socket);
+  userSockets.get(userId)!.add(ws);
 
   for (const room of rooms) {
     const roomId = room.id;
@@ -34,20 +31,20 @@ export async function addConnection(
     if (!roomSockets.has(roomId)) {
       roomSockets.set(roomId, new Set());
     }
-    roomSockets.get(roomId)!.add(socket);
+    roomSockets.get(roomId)!.add(ws);
   }
 }
 
-export function removeConnection(socket: WebSocket) {
-  const connection = connections.get(socket);
+export function removeConnection(ws: WebSocket) {
+  const connection = connections.get(ws);
   if (!connection) {
     return;
   }
   const { userId, rooms } = connection;
-  connections.delete(socket);
+  connections.delete(ws);
   if (userSockets.get(userId)) {
     const totalSockets = userSockets.get(userId);
-    totalSockets!.delete(socket);
+    totalSockets!.delete(ws);
     if (!totalSockets?.size) {
       userSockets.delete(userId);
     }
@@ -55,7 +52,7 @@ export function removeConnection(socket: WebSocket) {
   for (const roomid of connection.rooms) {
     const sockets = roomSockets.get(roomid);
     if (sockets) {
-      sockets.delete(socket);
+      sockets.delete(ws);
       if (sockets.size === 0) {
         roomSockets.delete(roomid);
       }
@@ -63,10 +60,67 @@ export function removeConnection(socket: WebSocket) {
   }
 }
 
-export function joinRoom() {}
+export function joinRoom(ws: WebSocket, roomId: number) {
+  const connection = connections.get(ws);
+  if (!connection) {
+    return;
+  }
 
-export function leaveRoom() {}
+  connection.rooms.add(roomId);
 
-export function broadcastToRoom() {}
+  if (!roomSockets.has(roomId)) {
+    roomSockets.set(roomId, new Set());
+  }
 
-export function sendToUser() {}
+  roomSockets.get(roomId)!.add(ws);
+}
+
+export function leaveRoom(ws: WebSocket, roomId: number) {
+  const connection = connections.get(ws);
+  if (!connection) {
+    return;
+  }
+
+  connection.rooms.delete(roomId);
+
+  const sockets = roomSockets.get(roomId);
+  if (!sockets) {
+    return;
+  }
+
+  sockets.delete(ws);
+
+  if (sockets.size === 0) {
+    roomSockets.delete(roomId);
+  }
+}
+
+export function broadcastToRoom(roomId: number, message: object) {
+  const sockets = roomSockets.get(roomId);
+  if (!sockets) {
+    return;
+  }
+
+  const payload = JSON.stringify(message);
+
+  for (const socket of sockets) {
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(payload);
+    }
+  }
+}
+
+export function sendToUser(userId: number, message: object) {
+  const sockets = userSockets.get(userId);
+  if (!sockets) {
+    return;
+  }
+
+  const payload = JSON.stringify(message);
+
+  for (const socket of sockets) {
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(payload);
+    }
+  }
+}

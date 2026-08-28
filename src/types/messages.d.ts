@@ -1,3 +1,4 @@
+import { WebSocket } from "ws";
 export type ClientMessage =
   | {
       type: "JOIN_ROOM";
