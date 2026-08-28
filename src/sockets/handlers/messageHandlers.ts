@@ -1,4 +1,5 @@
 import type { MessageHandlerType } from "../../types/messages.js";
+import { createMessageInRoom } from "../../queries/rooms.queries.js";
 import { broadcastToRoom } from "../socketManager.js";
 import { connections } from "../socketStore.js";
 
@@ -14,13 +15,11 @@ export const handleSendMessage: MessageHandlerType = async (ws, data) => {
     return;
   }
 
+  const message = await createMessageInRoom(roomId, connection.userId, content);
+
   broadcastToRoom(roomId, {
     type: "SEND_MESSAGE",
-    data: {
-      roomId,
-      content,
-      senderId: connection.userId,
-    },
+    data: message,
   });
 };
 

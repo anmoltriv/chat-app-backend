@@ -106,6 +106,42 @@ export const getRoomForUser = async (userId: number, roomId: number) => {
   return result.rows[0] ?? null;
 };
 
+export const createRoomForUser = async (userId: number, name: string) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const roomResult = await client.query(
+      `
+      INSERT INTO rooms (name)
+      VALUES ($1)
+      RETURNING id
+      `,
+      [name],
+    );
+
+    const roomId = roomResult.rows[0].id as number;
+
+    await client.query(
+      `
+      INSERT INTO room_members (room_id, user_id, role)
+      VALUES ($1, $2, 'MEMBER')
+      `,
+      [roomId, userId],
+    );
+
+    await client.query("COMMIT");
+
+    return roomId;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
 export const addUserToRoom = async (userId: number, roomId: number) => {
   await pool.query(
     `
@@ -125,4 +161,61 @@ export const removeUserFromRoom = async (userId: number, roomId: number) => {
     `,
     [roomId, userId],
   );
+};
+
+export const getMessagesForRoom = async (roomId: number) => {
+  const result = await pool.query(
+    `
+    SELECT
+      m.id,
+      m.room_id AS "roomId",
+      m.content,
+      m.created_at AS "createdAt",
+      json_build_object(
+        'id', u.id,
+        'name', u.name,
+        'username', u.user_name
+      ) AS sender
+    FROM messages m
+    JOIN users u
+      ON u.id = m.sender_id
+    WHERE m.room_id = $1
+    ORDER BY m.created_at ASC, m.id ASC
+    `,
+    [roomId],
+  );
+
+  return result.rows;
+};
+
+export const createMessageInRoom = async (
+  roomId: number,
+  senderId: number,
+  content: string,
+) => {
+  const result = await pool.query(
+    `
+    WITH inserted_message AS (
+      INSERT INTO messages (room_id, sender_id, content)
+      VALUES ($1, $2, $3)
+      RETURNING id, room_id, content, created_at, sender_id
+    )
+    SELECT
+      m.id,
+      m.room_id AS "roomId",
+      m.content,
+      m.created_at AS "createdAt",
+      json_build_object(
+        'id', u.id,
+        'name', u.name,
+        'username', u.user_name
+      ) AS sender
+    FROM inserted_message m
+    JOIN users u
+      ON u.id = m.sender_id
+    `,
+    [roomId, senderId, content],
+  );
+
+  return result.rows[0];
 };
