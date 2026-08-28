@@ -7,7 +7,6 @@ import type {
   MessageHandlerType,
   MessageType,
 } from "../types/messages.js";
-import { handleJoinRoom, handleLeaveRoom } from "./handlers/roomHandlers.js";
 import {
   handleSendMessage,
   handleEditMessage,
@@ -16,8 +15,6 @@ import {
 let wss: WebSocketServer;
 
 const handlers: Record<MessageType, MessageHandlerType> = {
-  JOIN_ROOM: handleJoinRoom,
-  LEAVE_ROOM: handleLeaveRoom,
   SEND_MESSAGE: handleSendMessage,
   EDIT_MESSAGE: handleEditMessage,
   DELETE_MESSAGE: handleDeleteMessage,

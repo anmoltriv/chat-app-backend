@@ -1,4 +1,3 @@
-import { pool } from "../db/db.js";
 import { getRooms } from "../queries/rooms.queries.js";
 import {
   connections,
@@ -60,7 +59,7 @@ export function removeConnection(ws: WebSocket) {
   }
 }
 
-export function joinRoom(ws: WebSocket, roomId: number) {
+export function subscribeSocketToRoom(ws: WebSocket, roomId: number) {
   const connection = connections.get(ws);
   if (!connection) {
     return;
@@ -75,7 +74,7 @@ export function joinRoom(ws: WebSocket, roomId: number) {
   roomSockets.get(roomId)!.add(ws);
 }
 
-export function leaveRoom(ws: WebSocket, roomId: number) {
+export function unsubscribeSocketFromRoom(ws: WebSocket, roomId: number) {
   const connection = connections.get(ws);
   if (!connection) {
     return;
@@ -92,6 +91,28 @@ export function leaveRoom(ws: WebSocket, roomId: number) {
 
   if (sockets.size === 0) {
     roomSockets.delete(roomId);
+  }
+}
+
+export function subscribeUserSocketsToRoom(userId: number, roomId: number) {
+  const sockets = userSockets.get(userId);
+  if (!sockets) {
+    return;
+  }
+
+  for (const socket of sockets) {
+    subscribeSocketToRoom(socket, roomId);
+  }
+}
+
+export function unsubscribeUserSocketsFromRoom(userId: number, roomId: number) {
+  const sockets = userSockets.get(userId);
+  if (!sockets) {
+    return;
+  }
+
+  for (const socket of sockets) {
+    unsubscribeSocketFromRoom(socket, roomId);
   }
 }
 

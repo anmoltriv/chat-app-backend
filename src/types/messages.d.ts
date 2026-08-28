@@ -1,18 +1,6 @@
 import { WebSocket } from "ws";
 export type ClientMessage =
   | {
-      type: "JOIN_ROOM";
-      data: {
-        roomId: number;
-      };
-    }
-  | {
-      type: "LEAVE_ROOM";
-      data: {
-        roomId: number;
-      };
-    }
-  | {
       type: "SEND_MESSAGE";
       data: {
         roomId: number;
