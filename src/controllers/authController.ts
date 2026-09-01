@@ -69,17 +69,24 @@ export const signupUser: RequestHandler = async (req, res, next) => {
     const userResult = await pool.query(
       `INSERT INTO users (name, email, user_name, password_hash)
        VALUES ($1, $2, $3, $4)
-       RETURNING id`,
+       RETURNING id, name, email, user_name`,
       [name, email, user_name, hashpassword],
     );
 
-    const id = userResult.rows[0].id;
-
-    const token = jwt.sign({ id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    const created = userResult.rows[0];
+    const token = jwt.sign({ id: created.id }, JWT_SECRET, {
+      expiresIn: JWT_EXPIRES_IN,
+    });
 
     res.status(201).json({
       message: "You have successfully registered",
       token,
+      user: {
+        id: created.id,
+        name: created.name,
+        email: created.email,
+        username: created.user_name,
+      },
     });
   } catch (error) {
     console.error("Signup error:", error);
@@ -105,7 +112,7 @@ export const loginUser: RequestHandler = async (req, res) => {
 
   try {
     const userResult = await pool.query(
-      `SELECT id, password_hash
+      `SELECT id, name, email, user_name, password_hash
        FROM users
        WHERE user_name = $1`,
       [user_name],
@@ -143,6 +150,12 @@ export const loginUser: RequestHandler = async (req, res) => {
     res.status(200).json({
       message: "You have successfully signed in",
       token,
+      user: {
+        id: findUser.id,
+        name: findUser.name,
+        email: findUser.email,
+        username: findUser.user_name,
+      },
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -186,6 +199,40 @@ export const logoutUser: RequestHandler = async (req, res) => {
   }
 };
 
-export const forgotPassword: RequestHandler = async (req, res) => {
-  // Setup mail system using Brevo API
+export const getMe: RequestHandler = async (req, res) => {
+  try {
+    const userResult = await pool.query(
+      `SELECT id, name, email, user_name
+       FROM users
+       WHERE id = $1`,
+      [req.userId],
+    );
+
+    const user = userResult.rows[0];
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        username: user.user_name,
+      },
+    });
+  } catch (error) {
+    console.error("Get me error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
 };

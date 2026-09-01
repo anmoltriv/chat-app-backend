@@ -3,10 +3,14 @@ import z from "zod";
 import {
   addUserToRoom,
   createRoomForUser,
+  getMemberRole,
+  getMembersForRoom,
   getMessagesForRoom,
   getRoomForUser,
   getRoomsWithLastMessage,
+  promoteMemberInRoom,
   removeUserFromRoom,
+  roomExists,
 } from "../queries/rooms.queries.js";
 import {
   subscribeUserSocketsToRoom,
@@ -16,6 +20,12 @@ import {
 const createRoomSchema = z.object({
   name: z.string().trim().min(2).max(50),
 });
+
+function parseId(raw: string | string[] | undefined) {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const id = Number(value);
+  return Number.isInteger(id) ? id : null;
+}
 
 // get rooms controller fetches the data of the user(rooms involved + last message reveived on each room with sender info)
 export const getRooms = async (
@@ -83,12 +93,19 @@ export const joinRoomHttp = async (
 ) => {
   try {
     const userId = req.userId;
-    const roomId = Number(req.params.roomId);
+    const roomId = parseId(req.params.roomId);
 
-    if (!Number.isInteger(roomId)) {
+    if (roomId === null) {
       return res.status(400).json({
         success: false,
         message: "Invalid room id",
+      });
+    }
+
+    if (!(await roomExists(roomId))) {
+      return res.status(404).json({
+        success: false,
+        message: "Room not found",
       });
     }
 
@@ -124,9 +141,9 @@ export const getRoomMessages = async (
 ) => {
   try {
     const userId = req.userId;
-    const roomId = Number(req.params.roomId);
+    const roomId = parseId(req.params.roomId);
 
-    if (!Number.isInteger(roomId)) {
+    if (roomId === null) {
       return res.status(400).json({
         success: false,
         message: "Invalid room id",
@@ -163,9 +180,9 @@ export const leaveRoomHttp = async (
 ) => {
   try {
     const userId = req.userId;
-    const roomId = Number(req.params.roomId);
+    const roomId = parseId(req.params.roomId);
 
-    if (!Number.isInteger(roomId)) {
+    if (roomId === null) {
       return res.status(400).json({
         success: false,
         message: "Invalid room id",
@@ -189,4 +206,144 @@ export const leaveRoomHttp = async (
   }
 };
 
+export const getRoomMembers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = req.userId;
+    const roomId = parseId(req.params.roomId);
 
+    if (roomId === null) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid room id",
+      });
+    }
+
+    const room = await getRoomForUser(userId!, roomId);
+    if (!room) {
+      return res.status(404).json({
+        success: false,
+        message: "Room not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      members: await getMembersForRoom(roomId),
+    });
+  } catch (error) {
+    console.error("Error fetching room members:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch members",
+    });
+  }
+};
+
+export const promoteMemberHttp = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = req.userId;
+    const roomId = parseId(req.params.roomId);
+    const memberId = parseId(req.params.memberId);
+
+    if (roomId === null || memberId === null) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid room or member id",
+      });
+    }
+
+    const role = await getMemberRole(userId!, roomId);
+    if (role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Only admins can promote members",
+      });
+    }
+
+    const promoted = await promoteMemberInRoom(roomId, memberId);
+    if (!promoted) {
+      return res.status(404).json({
+        success: false,
+        message: "Member not found in this room",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      memberId,
+    });
+  } catch (error) {
+    console.error("Error promoting member:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to promote member",
+    });
+  }
+};
+
+export const removeMemberHttp = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = req.userId;
+    const roomId = parseId(req.params.roomId);
+    const memberId = parseId(req.params.memberId);
+
+    if (roomId === null || memberId === null) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid room or member id",
+      });
+    }
+
+    if (memberId === userId) {
+      return res.status(400).json({
+        success: false,
+        message: "Use leave room to remove yourself",
+      });
+    }
+
+    const role = await getMemberRole(userId!, roomId);
+    if (role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Only admins can remove members",
+      });
+    }
+
+    const targetRole = await getMemberRole(memberId, roomId);
+    if (!targetRole) {
+      return res.status(404).json({
+        success: false,
+        message: "Member not found in this room",
+      });
+    }
+
+    await removeUserFromRoom(memberId, roomId);
+    unsubscribeUserSocketsFromRoom(memberId, roomId);
+
+    return res.status(200).json({
+      success: true,
+      memberId,
+    });
+  } catch (error) {
+    console.error("Error removing member:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to remove member",
+    });
+  }
+};

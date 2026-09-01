@@ -4,6 +4,12 @@ export const fetchroomsquery = `SELECT
     r.id,
     r.name,
     r.created_at,
+    (rm.role = 'admin') AS "isAdmin",
+    (
+      SELECT COUNT(*)::int
+      FROM room_members rm2
+      WHERE rm2.room_id = r.id
+    ) AS "memberCount",
 
     CASE
         WHEN lm.id IS NULL THEN NULL
@@ -46,6 +52,12 @@ const singleRoomForUserQuery = `SELECT
     r.id,
     r.name,
     r.created_at,
+    (rm.role = 'admin') AS "isAdmin",
+    (
+      SELECT COUNT(*)::int
+      FROM room_members rm2
+      WHERE rm2.room_id = r.id
+    ) AS "memberCount",
 
     CASE
         WHEN lm.id IS NULL THEN NULL
@@ -121,7 +133,7 @@ export const createRoomForUser = async (userId: number, name: string) => {
       [name, userId],
     );
 
-    const roomId = roomResult.rows[0].id as number;
+    const roomId = Number(roomResult.rows[0].id);
 
     await client.query(
       `
@@ -161,6 +173,59 @@ export const removeUserFromRoom = async (userId: number, roomId: number) => {
     `,
     [roomId, userId],
   );
+};
+
+export const roomExists = async (roomId: number) => {
+  const result = await pool.query(`SELECT id FROM rooms WHERE id = $1`, [
+    roomId,
+  ]);
+  return result.rows.length > 0;
+};
+
+export const getMemberRole = async (userId: number, roomId: number) => {
+  const result = await pool.query(
+    `
+    SELECT role
+    FROM room_members
+    WHERE room_id = $1 AND user_id = $2
+    `,
+    [roomId, userId],
+  );
+
+  return (result.rows[0]?.role as string | undefined) ?? null;
+};
+
+export const getMembersForRoom = async (roomId: number) => {
+  const result = await pool.query(
+    `
+    SELECT
+      u.id,
+      u.user_name AS username,
+      (rm.role = 'admin') AS "isAdmin"
+    FROM room_members rm
+    JOIN users u
+      ON u.id = rm.user_id
+    WHERE rm.room_id = $1
+    ORDER BY (rm.role = 'admin') DESC, u.user_name ASC
+    `,
+    [roomId],
+  );
+
+  return result.rows;
+};
+
+export const promoteMemberInRoom = async (roomId: number, memberId: number) => {
+  const result = await pool.query(
+    `
+    UPDATE room_members
+    SET role = 'admin'
+    WHERE room_id = $1 AND user_id = $2
+    RETURNING user_id
+    `,
+    [roomId, memberId],
+  );
+
+  return result.rows[0] ?? null;
 };
 
 export const getMessagesForRoom = async (roomId: number) => {
@@ -268,15 +333,23 @@ export const updateMessageInRoom = async (
 
 export const deleteMessageFromRoom = async (
   messageId: number,
-  senderId: number,
+  userId: number,
 ) => {
+  const existing = await getMessageById(messageId);
+  if (!existing) return null;
+
+  if (existing.sender_id !== userId) {
+    const role = await getMemberRole(userId, existing.room_id);
+    if (role !== "admin") return null;
+  }
+
   const result = await pool.query(
     `
     DELETE FROM messages
-    WHERE id = $1 AND sender_id = $2
+    WHERE id = $1
     RETURNING id, room_id AS "roomId"
     `,
-    [messageId, senderId],
+    [messageId],
   );
 
   return result.rows[0] ?? null;
