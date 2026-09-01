@@ -8,6 +8,7 @@ import {
 import { WebSocket } from "ws";
 
 export async function addConnection(ws: WebSocket, userId: number) {
+  userId = Number(userId);
   const rooms = await getRooms(userId);
   // remember in js the objects are pointer/reference based so the changes are propogated even if they are stored somewhere
   const connection: Connection = {
@@ -23,7 +24,7 @@ export async function addConnection(ws: WebSocket, userId: number) {
   userSockets.get(userId)!.add(ws);
 
   for (const room of rooms) {
-    const roomId = room.id;
+    const roomId = Number(room.id);
 
     connection.rooms.add(roomId);
 
@@ -65,13 +66,14 @@ export function subscribeSocketToRoom(ws: WebSocket, roomId: number) {
     return;
   }
 
-  connection.rooms.add(roomId);
+  const id = Number(roomId);
+  connection.rooms.add(id);
 
-  if (!roomSockets.has(roomId)) {
-    roomSockets.set(roomId, new Set());
+  if (!roomSockets.has(id)) {
+    roomSockets.set(id, new Set());
   }
 
-  roomSockets.get(roomId)!.add(ws);
+  roomSockets.get(id)!.add(ws);
 }
 
 export function unsubscribeSocketFromRoom(ws: WebSocket, roomId: number) {
@@ -80,9 +82,10 @@ export function unsubscribeSocketFromRoom(ws: WebSocket, roomId: number) {
     return;
   }
 
-  connection.rooms.delete(roomId);
+  const id = Number(roomId);
+  connection.rooms.delete(id);
 
-  const sockets = roomSockets.get(roomId);
+  const sockets = roomSockets.get(id);
   if (!sockets) {
     return;
   }
@@ -95,29 +98,29 @@ export function unsubscribeSocketFromRoom(ws: WebSocket, roomId: number) {
 }
 
 export function subscribeUserSocketsToRoom(userId: number, roomId: number) {
-  const sockets = userSockets.get(userId);
+  const sockets = userSockets.get(Number(userId));
   if (!sockets) {
     return;
   }
 
   for (const socket of sockets) {
-    subscribeSocketToRoom(socket, roomId);
+    subscribeSocketToRoom(socket, Number(roomId));
   }
 }
 
 export function unsubscribeUserSocketsFromRoom(userId: number, roomId: number) {
-  const sockets = userSockets.get(userId);
+  const sockets = userSockets.get(Number(userId));
   if (!sockets) {
     return;
   }
 
   for (const socket of sockets) {
-    unsubscribeSocketFromRoom(socket, roomId);
+    unsubscribeSocketFromRoom(socket, Number(roomId));
   }
 }
 
 export function broadcastToRoom(roomId: number, message: object) {
-  const sockets = roomSockets.get(roomId);
+  const sockets = roomSockets.get(Number(roomId));
   if (!sockets) {
     return;
   }

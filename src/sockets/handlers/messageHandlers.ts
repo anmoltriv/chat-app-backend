@@ -15,14 +15,15 @@ export const handleSendMessage: MessageHandlerType = async (ws, data) => {
   if (!connection) return;
 
   const { roomId, content } = data.data;
+  const id = Number(roomId);
 
-  if (!connection.rooms.has(roomId)) {
+  if (!connection.rooms.has(id)) {
     return;
   }
 
-  const message = await createMessageInRoom(roomId, connection.userId, content);
+  const message = await createMessageInRoom(id, connection.userId, content);
 
-  broadcastToRoom(roomId, {
+  broadcastToRoom(id, {
     type: "SEND_MESSAGE",
     data: message,
   });
@@ -39,16 +40,16 @@ export const handleEditMessage: MessageHandlerType = async (ws, data) => {
   const existing = await getMessageById(messageId);
   if (!existing) return;
 
-  if (!connection.rooms.has(existing.room_id)) return;
+  if (!connection.rooms.has(Number(existing.room_id))) return;
 
   const message = await updateMessageInRoom(
-    messageId,
+    Number(messageId),
     connection.userId,
     content,
   );
   if (!message) return;
 
-  broadcastToRoom(message.roomId, {
+  broadcastToRoom(Number(message.roomId), {
     type: "EDIT_MESSAGE",
     data: message,
   });
@@ -65,12 +66,12 @@ export const handleDeleteMessage: MessageHandlerType = async (ws, data) => {
   const existing = await getMessageById(messageId);
   if (!existing) return;
 
-  if (!connection.rooms.has(existing.room_id)) return;
+  if (!connection.rooms.has(Number(existing.room_id))) return;
 
-  const deleted = await deleteMessageFromRoom(messageId, connection.userId);
+  const deleted = await deleteMessageFromRoom(Number(messageId), connection.userId);
   if (!deleted) return;
 
-  broadcastToRoom(deleted.roomId, {
+  broadcastToRoom(Number(deleted.roomId), {
     type: "DELETE_MESSAGE",
     data: deleted,
   });

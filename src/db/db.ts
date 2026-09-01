@@ -1,14 +1,16 @@
-import { Pool } from "pg";
+import { neonConfig, Pool } from "@neondatabase/serverless";
+import { WebSocket } from "ws";
+
+// Restricted networks (campus Wi‑Fi) often block Postgres 5432.
+// Neon’s serverless driver talks over WebSockets on 443 instead.
+neonConfig.webSocketConstructor = WebSocket;
 
 const DB_CONNECTION_URL = process.env.DB_CONNECTION_STRING;
 
-
 export const pool = new Pool({
   connectionString: DB_CONNECTION_URL,
-  max: 20, 
-  min: 4, 
+  max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
 });
 
 export async function connectDB() {
